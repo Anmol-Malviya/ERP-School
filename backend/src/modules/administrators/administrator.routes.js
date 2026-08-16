@@ -1,0 +1,1 @@
+const {PERMISSIONS:P}=require('../../constants/permissions');const v=require('./administrator.validator');module.exports=require('../_shared/crud.routes')({controller:require('./administrator.controller'),readPermission:P.USERS_READ,writePermission:P.USERS_WRITE,tenantScoped:false,validateCreate:v.create});

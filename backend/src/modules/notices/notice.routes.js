@@ -1,0 +1,1 @@
+const {PERMISSIONS:P}=require('../../constants/permissions');const v=require('./notice.validator');module.exports=require('../_shared/crud.routes')({controller:require('./notice.controller'),readPermission:P.NOTICES_READ,writePermission:P.NOTICES_WRITE,validateCreate:v.create});

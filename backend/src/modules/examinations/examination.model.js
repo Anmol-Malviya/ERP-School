@@ -1,0 +1,3 @@
+const { Schema, id, model } = require('../../models/helpers');
+const schema=new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),name:{type:String,required:true},type:{type:String,enum:['UNIT_TEST','MID_TERM','FINAL','PRACTICAL','OTHER'],default:'OTHER'},classIds:[id('Class')],subjects:[{subjectId:id('Subject',{required:true}),maxMarks:Number,passingMarks:Number,examAt:Date}],startsAt:Date,endsAt:Date,status:{type:String,enum:['DRAFT','SCHEDULED','ONGOING','COMPLETED','RESULT_PUBLISHED'],default:'DRAFT',index:true}},{timestamps:true});
+module.exports=model('Examination',schema);

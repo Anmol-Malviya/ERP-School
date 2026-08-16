@@ -1,0 +1,1 @@
+const v=require('../_shared/module.validator');module.exports={fee:v({required:['academicSessionId','name','amount']}),payment:v({required:['academicSessionId','feeId','studentId','amount','receiptNo']})};

@@ -1,0 +1,1 @@
+'use client';import{useAuth}from'./useAuth';import{canManagePlatform}from'@/lib/permissions';export function usePermissions(){const{session}=useAuth();return{isSuperAdmin:canManagePlatform(session?.user.role),can:()=>canManagePlatform(session?.user.role)}}

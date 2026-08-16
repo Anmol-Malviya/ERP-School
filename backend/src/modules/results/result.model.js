@@ -1,0 +1,5 @@
+const { Schema, id, model } = require('../../models/helpers');
+const schema=new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),examinationId:id('Examination',{required:true,index:true}),studentId:id('Student',{required:true,index:true}),classId:id('Class',{required:true,index:true}),sectionId:id('Section',{required:true,index:true}),marks:[{subjectId:id('Subject',{required:true}),marksObtained:Number,maxMarks:Number,grade:String,remarks:String}],totalObtained:{type:Number,default:0},totalMax:{type:Number,default:0},percentage:{type:Number,default:0},grade:String,rank:Number,published:{type:Boolean,default:false,index:true},enteredBy:id('User')},{timestamps:true});
+schema.index({schoolId:1,academicSessionId:1,examinationId:1,studentId:1},{unique:true});
+schema.pre('save',function(next){this.totalObtained=this.marks.reduce((s,r)=>s+Number(r.marksObtained||0),0);this.totalMax=this.marks.reduce((s,r)=>s+Number(r.maxMarks||0),0);this.percentage=this.totalMax?Number(((this.totalObtained/this.totalMax)*100).toFixed(2)):0;next()});
+module.exports=model('Result',schema);

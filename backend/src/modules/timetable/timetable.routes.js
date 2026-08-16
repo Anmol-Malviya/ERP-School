@@ -1,0 +1,1 @@
+const {PERMISSIONS:P}=require('../../constants/permissions');const v=require('./timetable.validator');module.exports=require('../_shared/crud.routes')({controller:require('./timetable.controller'),readPermission:P.TIMETABLE_READ,writePermission:P.TIMETABLE_WRITE,validateCreate:v.create});

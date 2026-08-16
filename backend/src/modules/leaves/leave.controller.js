@@ -1,0 +1,1 @@
+const C=require('../../core'),s=require('./leave.service'),crud=require('../_shared/crud.controller')(s);module.exports={...crud,review:C.asyncHandler(async(req,res)=>C.success(res,await s.review(req,req.params.id),'Leave reviewed'))};

@@ -1,0 +1,1 @@
+const {createCrudService}=require('../_shared/crud.service');module.exports=createCrudService({Model:require('./examination.model'),resource:'Examination',searchFields:['name','type'],filterFields:['academicSessionId','type','status']});

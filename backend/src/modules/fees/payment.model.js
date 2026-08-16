@@ -1,0 +1,4 @@
+const { Schema, id, model } = require('../../models/helpers');
+const schema=new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),feeId:id('Fee',{required:true,index:true}),studentId:id('Student',{required:true,index:true}),amount:{type:Number,required:true,min:0},discount:{type:Number,default:0},fine:{type:Number,default:0},mode:{type:String,enum:['CASH','UPI','CARD','BANK','ONLINE','OTHER'],default:'CASH'},transactionRef:String,receiptNo:{type:String,required:true},paidAt:{type:Date,default:Date.now,index:true},receivedBy:id('User'),status:{type:String,enum:['SUCCESS','REFUNDED','CANCELLED'],default:'SUCCESS'}},{timestamps:true});
+schema.index({schoolId:1,receiptNo:1},{unique:true});
+module.exports=model('Payment',schema);

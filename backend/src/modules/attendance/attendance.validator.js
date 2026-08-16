@@ -1,0 +1,1 @@
+const {requireFields}=require('../../validators/common.validator');module.exports={create:[requireFields('academicSessionId','date','classId','sectionId','studentId','status')],bulk:[requireFields('academicSessionId','date','classId','sectionId','records')]};

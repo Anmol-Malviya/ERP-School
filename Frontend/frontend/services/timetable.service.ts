@@ -1,0 +1,1 @@
+import{resource}from'./_resource';export type Timetable={_id:string;academicSessionId:string;classId:string;sectionId:string;day:string;periods:Array<Record<string,unknown>>;published:boolean};export const timetableService=resource<Timetable>('/timetable');

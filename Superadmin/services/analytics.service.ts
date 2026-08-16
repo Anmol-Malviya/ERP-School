@@ -1,0 +1,1 @@
+import{api}from'@/lib/api';export type PlatformDashboard={schools:number;users:number;students:number;teachers:number;revenue:number;paymentTransactions:number;attendanceRate:number};export const analyticsService={dashboard:()=>api.get<PlatformDashboard>('/platform/dashboard'),audit:(query='')=>api.get<Record<string,unknown>[]>(`/audit${query?`?${query}`:''}`)};

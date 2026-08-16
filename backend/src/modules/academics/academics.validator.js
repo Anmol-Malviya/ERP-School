@@ -1,0 +1,1 @@
+const v=require('../_shared/module.validator');module.exports={sessions:v({required:['name','startsAt','endsAt']}),classes:v({required:['academicSessionId','name']}),sections:v({required:['academicSessionId','classId','name']}),subjects:v({required:['academicSessionId','name','code']})};

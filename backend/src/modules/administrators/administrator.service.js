@@ -1,0 +1,1 @@
+const {createCrudService}=require('../_shared/crud.service');module.exports=createCrudService({Model:require('./administrator.model'),resource:'Administrator',searchFields:['designation','employeeCode'],filterFields:['userId'],tenantScoped:false});

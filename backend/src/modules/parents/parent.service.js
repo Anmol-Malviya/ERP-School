@@ -1,0 +1,1 @@
+const {createCrudService}=require('../_shared/crud.service');module.exports=createCrudService({Model:require('./parent.model'),resource:'Parent',searchFields:['name','phone','email'],filterFields:['relation','status']});

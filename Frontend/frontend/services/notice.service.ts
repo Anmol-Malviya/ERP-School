@@ -1,0 +1,1 @@
+import{resource}from'./_resource';export type Notice={_id:string;title:string;body:string;audience:string[];priority:string;publishedAt:string};export const noticeService=resource<Notice>('/notices');

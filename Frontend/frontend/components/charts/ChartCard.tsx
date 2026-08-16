@@ -1,0 +1,1 @@
+export function ChartCard({title,values}:{title:string;values:number[]}){const max=Math.max(...values,1);return <section className="panel"><h3>{title}</h3><div className="bar-chart">{values.map((v,i)=><div className="bar-col" key={i}><div className="bar-track"><span style={{height:`${Math.max(4,(v/max)*100)}%`}}/></div><small>{v}</small></div>)}</div></section>}

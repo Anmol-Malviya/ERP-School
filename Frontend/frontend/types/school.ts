@@ -1,0 +1,1 @@
+export type School={_id:string;name:string;code:string;slug:string;board?:string;email?:string;phone?:string;status:'ACTIVE'|'TRIAL'|'SUSPENDED'|'INACTIVE';settings?:{timezone?:string;currency?:string;academicYearLabel?:string}};

@@ -1,0 +1,1 @@
+const express=require('express');const C=require('../../core');const {PERMISSIONS:P}=require('../../constants/permissions');const router=express.Router();router.get('/dashboard',C.authenticate,C.tenant(false),C.permission(P.REPORTS_READ),require('./report.controller').dashboard);module.exports=router;

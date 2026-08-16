@@ -1,0 +1,1 @@
+import{api}from'@/lib/api';import{resource}from'./_resource';export type Result={_id:string;studentId:string;examinationId:string;percentage:number;grade?:string;published:boolean};export const resultService={...resource<Result>('/results'),publish:(id:string)=>api.post<Result>(`/results/${id}/publish`,{})};

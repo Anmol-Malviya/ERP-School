@@ -1,0 +1,1 @@
+const C=require('../../core'),service=require('./result.service'),crud=require('../_shared/crud.controller')(service);module.exports={...crud,publish:C.asyncHandler(async(req,res)=>C.success(res,await service.publish(req,req.params.id),'Result published'))};

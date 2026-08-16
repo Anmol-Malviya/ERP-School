@@ -1,0 +1,1 @@
+export type TeacherAssignment={academicSessionId?:string;classId?:string;sectionId?:string;subjectId?:string};export type Teacher={_id:string;employeeCode:string;name:string;email?:string;department?:string;designation?:string;subjectIds?:string[];classAssignments?:TeacherAssignment[];status:'ACTIVE'|'INACTIVE'|'ON_LEAVE'};

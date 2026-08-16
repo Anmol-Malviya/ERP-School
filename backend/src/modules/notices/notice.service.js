@@ -1,0 +1,1 @@
+const {createCrudService}=require('../_shared/crud.service');module.exports=createCrudService({Model:require('./notice.model'),resource:'Notice',searchFields:['title','body','priority'],filterFields:['priority'],beforeCreate:async(req,data)=>({...data,createdBy:req.user._id})});

@@ -1,52 +1,24 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const { ROLE_VALUES } = require('../constants/roles');
-const { Schema } = mongoose;
-const id = (ref, options = {}) => ({ type: Schema.Types.ObjectId, ref, ...options });
-const model = (name, schema) => mongoose.models[name] || mongoose.model(name, schema);
-
-const userSchema = new Schema({
-  name:{type:String,required:true,trim:true}, email:{type:String,required:true,unique:true,index:true,lowercase:true,trim:true},
-  password:{type:String,required:true,minlength:8,select:false}, role:{type:String,enum:ROLE_VALUES,required:true,index:true},
-  schoolId:id('School',{default:null,index:true}), assignedSchoolIds:[id('School')], permissions:[String], phone:String, avatarUrl:String,
-  status:{type:String,enum:['ACTIVE','INACTIVE','SUSPENDED'],default:'ACTIVE',index:true}, lastLoginAt:Date, refreshTokenHash:{type:String,select:false}
-},{timestamps:true});
-userSchema.index({schoolId:1,role:1,status:1});
-userSchema.pre('save',async function(next){if(!this.isModified('password'))return next();this.password=await bcrypt.hash(this.password,12);next();});
-userSchema.methods.comparePassword=function(value){return bcrypt.compare(value,this.password)};
-userSchema.methods.setRefreshToken=async function(token){this.refreshTokenHash=token?await bcrypt.hash(token,10):undefined};
-userSchema.methods.compareRefreshToken=function(token){return this.refreshTokenHash?bcrypt.compare(token,this.refreshTokenHash):false};
-userSchema.set('toJSON',{transform(_d,r){delete r.password;delete r.refreshTokenHash;return r}});
-const User=model('User',userSchema);
-
-const School=model('School',new Schema({
-  name:{type:String,required:true,trim:true},code:{type:String,required:true,unique:true,index:true,uppercase:true,trim:true},slug:{type:String,required:true,unique:true,index:true,lowercase:true,trim:true},
-  board:String,logoUrl:String,email:{type:String,lowercase:true,trim:true},phone:String,address:{line1:String,line2:String,city:String,state:String,postalCode:String,country:{type:String,default:'India'}},
-  status:{type:String,enum:['ACTIVE','TRIAL','SUSPENDED','INACTIVE'],default:'TRIAL',index:true},subscription:{plan:{type:String,default:'TRIAL'},startsAt:Date,endsAt:Date,maxStudents:{type:Number,default:500},maxStaff:{type:Number,default:100}},
-  settings:{timezone:{type:String,default:'Asia/Kolkata'},currency:{type:String,default:'INR'},academicYearLabel:String},createdBy:id('User')
-},{timestamps:true}));
-
-const Administrator=model('Administrator',new Schema({userId:id('User',{required:true,unique:true}),assignedSchoolIds:[id('School')],designation:{type:String,default:'Administrator'},employeeCode:String,notes:String},{timestamps:true}));
-const AcademicSession=model('AcademicSession',new Schema({schoolId:id('School',{required:true,index:true}),name:{type:String,required:true},startsAt:{type:Date,required:true},endsAt:{type:Date,required:true},isCurrent:{type:Boolean,default:false,index:true},status:{type:String,enum:['PLANNED','ACTIVE','CLOSED'],default:'PLANNED'}},{timestamps:true}).index({schoolId:1,name:1},{unique:true}));
-const Class=model('Class',new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),name:{type:String,required:true},numericOrder:{type:Number,default:0},classTeacherId:id('Teacher'),status:{type:String,enum:['ACTIVE','INACTIVE'],default:'ACTIVE'}},{timestamps:true}).index({schoolId:1,academicSessionId:1,name:1},{unique:true}));
-const Section=model('Section',new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),classId:id('Class',{required:true,index:true}),name:{type:String,required:true},capacity:{type:Number,default:50},room:String,classTeacherId:id('Teacher'),status:{type:String,enum:['ACTIVE','INACTIVE'],default:'ACTIVE'}},{timestamps:true}).index({schoolId:1,academicSessionId:1,classId:1,name:1},{unique:true}));
-const Subject=model('Subject',new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),name:{type:String,required:true},code:{type:String,required:true,uppercase:true},type:{type:String,enum:['CORE','ELECTIVE','PRACTICAL','ACTIVITY'],default:'CORE'},classIds:[id('Class')],teacherIds:[id('Teacher')],maxMarks:{type:Number,default:100},passingMarks:{type:Number,default:33},status:{type:String,enum:['ACTIVE','INACTIVE'],default:'ACTIVE'}},{timestamps:true}).index({schoolId:1,academicSessionId:1,code:1},{unique:true}));
-
-const Student=model('Student',new Schema({schoolId:id('School',{required:true,index:true}),userId:id('User',{unique:true,sparse:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),admissionNo:{type:String,required:true},rollNo:String,firstName:{type:String,required:true},lastName:String,dateOfBirth:Date,gender:{type:String,enum:['MALE','FEMALE','OTHER','UNSPECIFIED'],default:'UNSPECIFIED'},classId:id('Class',{required:true,index:true}),sectionId:id('Section',{required:true,index:true}),parentIds:[id('Parent')],bloodGroup:String,phone:String,address:{line1:String,city:String,state:String,postalCode:String},documents:[{name:String,url:String,verified:{type:Boolean,default:false}}],admissionDate:{type:Date,default:Date.now},status:{type:String,enum:['ACTIVE','INACTIVE','GRADUATED','TRANSFERRED'],default:'ACTIVE',index:true}},{timestamps:true}).index({schoolId:1,admissionNo:1},{unique:true}));
-const Parent=model('Parent',new Schema({schoolId:id('School',{required:true,index:true}),userId:id('User',{unique:true,sparse:true}),name:{type:String,required:true},relation:{type:String,enum:['FATHER','MOTHER','GUARDIAN','OTHER'],default:'GUARDIAN'},phone:{type:String,required:true},email:String,occupation:String,studentIds:[id('Student')],address:{line1:String,city:String,state:String,postalCode:String},status:{type:String,enum:['ACTIVE','INACTIVE'],default:'ACTIVE'}},{timestamps:true}));
-const Teacher=model('Teacher',new Schema({schoolId:id('School',{required:true,index:true}),userId:id('User',{unique:true,sparse:true}),employeeCode:{type:String,required:true},name:{type:String,required:true},email:String,phone:String,department:String,designation:{type:String,default:'Teacher'},subjectIds:[id('Subject')],classAssignments:[{academicSessionId:id('AcademicSession'),classId:id('Class'),sectionId:id('Section'),subjectId:id('Subject')}],joiningDate:Date,status:{type:String,enum:['ACTIVE','INACTIVE','ON_LEAVE'],default:'ACTIVE',index:true}},{timestamps:true}).index({schoolId:1,employeeCode:1},{unique:true}));
-const Attendance=model('Attendance',new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),date:{type:Date,required:true,index:true},classId:id('Class',{required:true,index:true}),sectionId:id('Section',{required:true,index:true}),studentId:id('Student',{required:true,index:true}),status:{type:String,enum:['PRESENT','ABSENT','LEAVE','LATE','HALF_DAY'],required:true},markedBy:id('User',{required:true}),remarks:String},{timestamps:true}).index({schoolId:1,academicSessionId:1,date:1,studentId:1},{unique:true}));
-const Timetable=model('Timetable',new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),classId:id('Class',{required:true,index:true}),sectionId:id('Section',{required:true,index:true}),day:{type:String,enum:['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY'],required:true},periods:[{periodNo:Number,startsAt:String,endsAt:String,subjectId:id('Subject'),teacherId:id('Teacher'),room:String,type:{type:String,default:'CLASS'}}],published:{type:Boolean,default:false}},{timestamps:true}).index({schoolId:1,academicSessionId:1,classId:1,sectionId:1,day:1},{unique:true}));
-const Assignment=model('Assignment',new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),classId:id('Class',{required:true,index:true}),sectionId:id('Section',{index:true}),subjectId:id('Subject',{required:true,index:true}),teacherId:id('Teacher'),title:{type:String,required:true},description:String,type:{type:String,enum:['HOMEWORK','ASSIGNMENT','PROJECT'],default:'ASSIGNMENT'},attachments:[{name:String,url:String}],dueAt:Date,maxMarks:Number,status:{type:String,enum:['DRAFT','PUBLISHED','CLOSED'],default:'DRAFT',index:true}},{timestamps:true}));
-const Examination=model('Examination',new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),name:{type:String,required:true},type:{type:String,enum:['UNIT_TEST','MID_TERM','FINAL','PRACTICAL','OTHER'],default:'OTHER'},classIds:[id('Class')],subjects:[{subjectId:id('Subject',{required:true}),maxMarks:Number,passingMarks:Number,examAt:Date}],startsAt:Date,endsAt:Date,status:{type:String,enum:['DRAFT','SCHEDULED','ONGOING','COMPLETED','RESULT_PUBLISHED'],default:'DRAFT',index:true}},{timestamps:true}));
-const resultSchema=new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),examinationId:id('Examination',{required:true,index:true}),studentId:id('Student',{required:true,index:true}),classId:id('Class',{required:true,index:true}),sectionId:id('Section',{required:true,index:true}),marks:[{subjectId:id('Subject',{required:true}),marksObtained:Number,maxMarks:Number,grade:String,remarks:String}],totalObtained:{type:Number,default:0},totalMax:{type:Number,default:0},percentage:{type:Number,default:0},grade:String,rank:Number,published:{type:Boolean,default:false,index:true},enteredBy:id('User')},{timestamps:true});
-resultSchema.index({schoolId:1,academicSessionId:1,examinationId:1,studentId:1},{unique:true});resultSchema.pre('save',function(next){this.totalObtained=this.marks.reduce((s,r)=>s+Number(r.marksObtained||0),0);this.totalMax=this.marks.reduce((s,r)=>s+Number(r.maxMarks||0),0);this.percentage=this.totalMax?Number(((this.totalObtained/this.totalMax)*100).toFixed(2)):0;next()});
-const Result=model('Result',resultSchema);
-const Fee=model('Fee',new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),name:{type:String,required:true},category:{type:String,enum:['TUITION','TRANSPORT','EXAM','LIBRARY','ADMISSION','OTHER'],default:'TUITION'},classId:id('Class',{index:true}),studentId:id('Student',{index:true}),amount:{type:Number,required:true,min:0},dueAt:Date,lateFee:{type:Number,default:0},status:{type:String,enum:['ACTIVE','INACTIVE'],default:'ACTIVE'}},{timestamps:true}));
-const Payment=model('Payment',new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),feeId:id('Fee',{required:true,index:true}),studentId:id('Student',{required:true,index:true}),amount:{type:Number,required:true,min:0},discount:{type:Number,default:0},fine:{type:Number,default:0},mode:{type:String,enum:['CASH','UPI','CARD','BANK','ONLINE','OTHER'],default:'CASH'},transactionRef:String,receiptNo:{type:String,required:true},paidAt:{type:Date,default:Date.now,index:true},receivedBy:id('User'),status:{type:String,enum:['SUCCESS','REFUNDED','CANCELLED'],default:'SUCCESS'}},{timestamps:true}).index({schoolId:1,receiptNo:1},{unique:true}));
-const Notice=model('Notice',new Schema({schoolId:id('School',{required:true,index:true}),title:{type:String,required:true},body:{type:String,required:true},audience:[{type:String,enum:['ALL','SCHOOL_ADMIN','TEACHER','STUDENT','PARENT']}],classIds:[id('Class')],sectionIds:[id('Section')],priority:{type:String,enum:['NORMAL','IMPORTANT','URGENT'],default:'NORMAL'},publishedAt:{type:Date,default:Date.now},expiresAt:Date,createdBy:id('User',{required:true})},{timestamps:true}));
-const Leave=model('Leave',new Schema({schoolId:id('School',{required:true,index:true}),applicantUserId:id('User',{required:true,index:true}),studentId:id('Student'),type:{type:String,enum:['SICK','CASUAL','EMERGENCY','OTHER'],default:'OTHER'},startsAt:{type:Date,required:true},endsAt:{type:Date,required:true},reason:{type:String,required:true},status:{type:String,enum:['PENDING','APPROVED','REJECTED','CANCELLED'],default:'PENDING',index:true},reviewedBy:id('User'),reviewNote:String},{timestamps:true}));
-const Notification=model('Notification',new Schema({schoolId:id('School',{index:true}),userId:id('User',{required:true,index:true}),title:{type:String,required:true},message:{type:String,required:true},type:{type:String,default:'INFO'},link:String,readAt:Date},{timestamps:true}).index({userId:1,readAt:1,createdAt:-1}));
-const AuditLog=model('AuditLog',new Schema({schoolId:id('School',{index:true}),userId:id('User',{index:true}),action:{type:String,required:true,index:true},resource:{type:String,required:true,index:true},resourceId:Schema.Types.ObjectId,metadata:Schema.Types.Mixed,ip:String,userAgent:String},{timestamps:true}).index({schoolId:1,createdAt:-1}));
-
-module.exports={User,School,Administrator,AcademicSession,Class,Section,Subject,Student,Parent,Teacher,Attendance,Timetable,Assignment,Examination,Result,Fee,Payment,Notice,Leave,Notification,AuditLog};
+const base = {
+  User: require('../modules/users/user.model'),
+  School: require('../modules/schools/school.model'),
+  Administrator: require('../modules/administrators/administrator.model'),
+  AcademicSession: require('../modules/academics/academicSession.model'),
+  Class: require('../modules/academics/class.model'),
+  Section: require('../modules/academics/section.model'),
+  Subject: require('../modules/academics/subject.model'),
+  Student: require('../modules/students/student.model'),
+  Parent: require('../modules/parents/parent.model'),
+  Teacher: require('../modules/teachers/teacher.model'),
+  Attendance: require('../modules/attendance/attendance.model'),
+  Timetable: require('../modules/timetable/timetable.model'),
+  Assignment: require('../modules/assignments/assignment.model'),
+  Examination: require('../modules/examinations/examination.model'),
+  Result: require('../modules/results/result.model'),
+  Fee: require('../modules/fees/fee.model'),
+  Payment: require('../modules/fees/payment.model'),
+  Notice: require('../modules/notices/notice.model'),
+  Leave: require('../modules/leaves/leave.model'),
+  Notification: require('../modules/notifications/notification.model'),
+  AuditLog: require('../modules/audit/auditLog.model'),
+};
+module.exports = { ...base, ...require('./extended') };
