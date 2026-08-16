@@ -1,3 +1,4 @@
 const { Schema, id, model } = require('../../models/helpers');
 const schema=new Schema({schoolId:id('School',{required:true,index:true}),academicSessionId:id('AcademicSession',{required:true,index:true}),name:{type:String,required:true},category:{type:String,enum:['TUITION','TRANSPORT','EXAM','LIBRARY','ADMISSION','OTHER'],default:'TUITION'},classId:id('Class',{index:true}),studentId:id('Student',{index:true}),amount:{type:Number,required:true,min:0},dueAt:Date,lateFee:{type:Number,default:0},status:{type:String,enum:['ACTIVE','INACTIVE'],default:'ACTIVE'}},{timestamps:true});
+schema.index({ schoolId: 1, academicSessionId: 1, classId: 1, status: 1 });
 module.exports=model('Fee',schema);
