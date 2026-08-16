@@ -1,9 +1,18 @@
-const C=require('../../core');const User=require('./user.model');const {ROLES}=require('../../constants/roles');const {tenantBase}=require('../_shared/crud.service');
+const C=require('../../core');const User=require('./user.model');const {ROLES}=require('../../constants/roles');const {tenantBase}=require('../_shared/crud.service');const cacheService=require('../../services/cache.service');
 const allowedRole=(actor,role)=>actor===ROLES.SUPER_ADMIN||(actor===ROLES.ADMINISTRATOR&&[ROLES.SCHOOL_ADMIN,ROLES.TEACHER,ROLES.STUDENT,ROLES.PARENT].includes(role))||(actor===ROLES.SCHOOL_ADMIN&&[ROLES.TEACHER,ROLES.STUDENT,ROLES.PARENT].includes(role));
 module.exports={
- async list(req){const {page,limit,skip}=C.page(req.query);const base=req.user.role===ROLES.SUPER_ADMIN?(req.tenantId?{schoolId:req.tenantId}:{}):tenantBase(req);const query=req.query.search?{$or:['name','email','role'].map(f=>({[f]:new RegExp(String(req.query.search),'i')}))}:{};const filter={...base,...query,...(req.query.role?{role:req.query.role}:{})};const[total,items]=await Promise.all([User.countDocuments(filter),User.find(filter).sort('-createdAt').skip(skip).limit(limit).lean()]);return{items,meta:{total,page,limit,pages:Math.ceil(total/limit)}}},
+ async list(req){const {page,limit,skip}=C.page(req.query);const base=req.user.role===ROLES.SUPER_ADMIN?(req.tenantId?{schoolId:req.tenantId}:{}):tenantBase(req);
+ const esc=v=>String(v).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+ let query={};
+ if (req.query.search) {
+   const s = String(req.query.search).trim();
+   if (s.length >= 2 && s.length <= 100) {
+     query = {$or:['name','email','role'].map(f=>({[f]:new RegExp(esc(s),'i')}))};
+   }
+ }
+ const filter={...base,...query,...(req.query.role?{role:req.query.role}:{})};const[total,items]=await Promise.all([User.countDocuments(filter),User.find(filter).sort('-createdAt').skip(skip).limit(limit).lean()]);return{items,meta:{total,page,limit,pages:Math.ceil(total/limit)}}},
  async get(req,id){const base=req.user.role===ROLES.SUPER_ADMIN?{}:tenantBase(req);const item=await User.findOne({_id:id,...base}).lean();if(!item)throw new C.ApiError(404,'User not found');return item},
  async create(req){if(!allowedRole(req.user.role,req.body.role))throw new C.ApiError(403,'You cannot assign this role');if(!req.body.password)throw new C.ApiError(400,'password is required');const data={...req.body};if(req.user.role!==ROLES.SUPER_ADMIN)data.schoolId=req.tenantId;const item=await User.create(data);await C.audit(req,'CREATE','User',item._id);return item},
- async update(req,id){const base=req.user.role===ROLES.SUPER_ADMIN?{}:tenantBase(req);const data={...req.body};delete data.password;delete data.refreshTokenHash;delete data.schoolId;if(data.role&&!allowedRole(req.user.role,data.role))throw new C.ApiError(403,'You cannot assign this role');const item=await User.findOneAndUpdate({_id:id,...base},data,{new:true,runValidators:true});if(!item)throw new C.ApiError(404,'User not found');await C.audit(req,'UPDATE','User',item._id);return item},
- async remove(req,id){const base=req.user.role===ROLES.SUPER_ADMIN?{}:tenantBase(req);const item=await User.findOneAndUpdate({_id:id,...base},{status:'INACTIVE'},{new:true});if(!item)throw new C.ApiError(404,'User not found');await C.audit(req,'DEACTIVATE','User',item._id);return item}
+ async update(req,id){const base=req.user.role===ROLES.SUPER_ADMIN?{}:tenantBase(req);const data={...req.body};delete data.password;delete data.refreshTokenHash;delete data.schoolId;if(data.role&&!allowedRole(req.user.role,data.role))throw new C.ApiError(403,'You cannot assign this role');const item=await User.findOneAndUpdate({_id:id,...base},data,{new:true,runValidators:true});if(!item)throw new C.ApiError(404,'User not found');await cacheService.del(`auth:user:${id}`);await C.audit(req,'UPDATE','User',item._id);return item},
+ async remove(req,id){const base=req.user.role===ROLES.SUPER_ADMIN?{}:tenantBase(req);const item=await User.findOneAndUpdate({_id:id,...base},{status:'INACTIVE'},{new:true});if(!item)throw new C.ApiError(404,'User not found');await cacheService.del(`auth:user:${id}`);await C.audit(req,'DEACTIVATE','User',item._id);return item}
 };

@@ -1,5 +1,10 @@
 const C=require('../../core');const School=require('./school.model');
-const search=q=>q.search?{$or:['name','code','slug','email'].map(f=>({[f]:new RegExp(String(q.search).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i')}))}:{};
+const search=q=>{
+  if (!q.search) return {};
+  const s = String(q.search).trim();
+  if (s.length < 2 || s.length > 100) return {};
+  return {$or:['name','code','slug','email'].map(f=>({[f]:new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i')}))};
+};
 module.exports={
  async list(req){const {page,limit,skip}=C.page(req.query);const filter={...C.schoolFilter(req),...search(req.query)};const[total,items]=await Promise.all([School.countDocuments(filter),School.find(filter).sort('-createdAt').skip(skip).limit(limit).lean()]);return{items,meta:{total,page,limit,pages:Math.ceil(total/limit)}}},
  async get(req,id){const item=await School.findOne({_id:id,...C.schoolFilter(req)}).lean();if(!item)throw new C.ApiError(404,'School not found');return item},
