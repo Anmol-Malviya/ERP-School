@@ -1,0 +1,5 @@
+export type BackendRole='SUPER_ADMIN'|'ADMINISTRATOR'|'SCHOOL_ADMIN'|'TEACHER'|'STUDENT'|'PARENT';
+export type SessionUser={_id:string;name:string;email:string;role:BackendRole;schoolId?:string|null;assignedSchoolIds?:string[];phone?:string;avatarUrl?:string};
+export type SessionSchool={_id:string;name:string;code:string;status:string;settings?:Record<string,unknown>};export type SessionPayload={user:SessionUser;profile?:Record<string,unknown>|null;schools:SessionSchool[]};
+export const routeRole=(path:string):BackendRole|null=>path.startsWith('/administrator')?'ADMINISTRATOR':path.startsWith('/school-admin')?'SCHOOL_ADMIN':path.startsWith('/teacher')?'TEACHER':path.startsWith('/student')?'STUDENT':path.startsWith('/parent')?'PARENT':null;
+export const homeFor=(role:BackendRole)=>role==='ADMINISTRATOR'?'/administrator/dashboard':role==='SCHOOL_ADMIN'?'/school-admin/dashboard':role==='TEACHER'?'/teacher/dashboard':role==='STUDENT'?'/student/dashboard':role==='PARENT'?'/parent/dashboard':'/login';export const initials=(name='User')=>name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();

@@ -1,0 +1,1 @@
+export type SuperUser={_id:string;name:string;email:string;role:string};export type SuperSession={user:SuperUser;schools:{_id:string;name:string;code:string;status:string}[]};export const initials=(n='Admin')=>n.split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase();
