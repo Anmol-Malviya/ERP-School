@@ -1,0 +1,7 @@
+const M = require('../models');
+const { ROLES } = require('../constants/roles');
+async function notifyUsers(userIds, payload) { const unique=[...new Set((userIds||[]).filter(Boolean).map(String))]; if(!unique.length)return 0; const docs=unique.map(userId=>({...payload,userId})); await M.Notification.insertMany(docs,{ordered:false}).catch(()=>{}); return docs.length; }
+async function usersForAudience(schoolId,audience=['ALL']) { const wanted=Array.isArray(audience)?audience:[audience]; const roleMap={SCHOOL_ADMIN:ROLES.SCHOOL_ADMIN,TEACHER:ROLES.TEACHER,STUDENT:ROLES.STUDENT,PARENT:ROLES.PARENT}; const roles=wanted.includes('ALL')?[ROLES.SCHOOL_ADMIN,ROLES.TEACHER,ROLES.STUDENT,ROLES.PARENT]:wanted.map(x=>roleMap[x]).filter(Boolean); return M.User.find({schoolId,role:{$in:roles},status:'ACTIVE'}).distinct('_id'); }
+async function notifyAudience({schoolId,audience,title,message,type='INFO',link}) { return notifyUsers(await usersForAudience(schoolId,audience),{schoolId,title,message,type,link}); }
+async function notifyParentsForStudents(studentIds,payload) { const students=await M.Student.find({_id:{$in:studentIds}}).select('parentIds schoolId').lean(); const parentIds=[...new Set(students.flatMap(s=>(s.parentIds||[]).map(String)))]; const parents=await M.Parent.find({_id:{$in:parentIds},userId:{$ne:null}}).select('userId schoolId').lean(); return notifyUsers(parents.map(p=>p.userId),payload); }
+module.exports={notifyUsers,usersForAudience,notifyAudience,notifyParentsForStudents};

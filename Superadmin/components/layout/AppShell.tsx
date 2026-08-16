@@ -1,18 +1,1 @@
-"use client";
-
-import { useState, type ReactNode } from "react";
-import { Header } from "./Header";
-import { Sidebar } from "./Sidebar";
-
-export function AppShell({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="app-shell">
-      <Sidebar open={open} onClose={() => setOpen(false)} />
-      <div className="app-main">
-        <Header onMenu={() => setOpen(true)} />
-        <main className="content-area">{children}</main>
-      </div>
-    </div>
-  );
-}
+'use client';import {useEffect,useState,type ReactNode} from 'react';import {useRouter} from 'next/navigation';import {useAuth} from '@/hooks/useAuth';import {Header} from './Header';import {Sidebar} from './Sidebar';export function AppShell({children}:{children:ReactNode}){const{session,loading}=useAuth(),router=useRouter(),[open,setOpen]=useState(false);useEffect(()=>{if(!loading&&!session)router.replace('/login')},[loading,session,router]);if(loading||!session)return <div style={{minHeight:'100vh',display:'grid',placeItems:'center'}}>Loading secure console…</div>;return <div className="app-shell"><Sidebar open={open} onClose={()=>setOpen(false)}/><div className="app-main"><Header onMenu={()=>setOpen(true)}/><main className="content-area">{children}</main></div></div>}
