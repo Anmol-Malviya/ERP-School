@@ -1,0 +1,1 @@
+export type Student={_id:string;schoolId:string;academicSessionId:string;admissionNo:string;rollNo?:string;firstName:string;lastName?:string;classId:string;sectionId:string;parentIds?:string[];status:'ACTIVE'|'INACTIVE'|'GRADUATED'|'TRANSFERRED'};

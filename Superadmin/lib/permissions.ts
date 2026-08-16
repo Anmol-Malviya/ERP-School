@@ -1,0 +1,1 @@
+export const SUPER_ADMIN_PERMISSIONS=['platform:manage','schools:read','schools:write','users:read','users:write','audit:read'] as const;export const canManagePlatform=(role?:string)=>role==='SUPER_ADMIN';

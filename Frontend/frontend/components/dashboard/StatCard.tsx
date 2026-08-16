@@ -1,0 +1,1 @@
+import type{ReactNode}from'react';export function StatCard({label,value,note,icon}:{label:string;value:string|number;note?:string;icon?:ReactNode}){return <article className="stat-card"><div className="stat-card-top">{icon}</div><p>{label}</p><strong>{value}</strong>{note?<small>{note}</small>:null}</article>}

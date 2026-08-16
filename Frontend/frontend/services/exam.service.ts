@@ -1,0 +1,1 @@
+import{resource}from'./_resource';export type Examination={_id:string;name:string;type:string;academicSessionId:string;status:string;startsAt?:string;endsAt?:string};export const examService=resource<Examination>('/examinations');

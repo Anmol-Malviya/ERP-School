@@ -1,0 +1,1 @@
+'use client';import {useMemo} from 'react';import {useAuth} from './useAuth';import {can} from '@/lib/permissions';export function usePermissions(){const{session}=useAuth();return useMemo(()=>({role:session?.user.role,can:(capability:string)=>can(session?.user.role,capability)}),[session?.user.role])}

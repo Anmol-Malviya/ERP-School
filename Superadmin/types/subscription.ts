@@ -1,0 +1,1 @@
+export type Plan={_id:string;name:string;code:string;priceMonthly:number;priceAnnual:number;maxStudents:number;maxStaff:number;features:string[];active:boolean};export type Subscription={_id:string;schoolId:string;planId:string;status:'TRIAL'|'ACTIVE'|'PAST_DUE'|'CANCELLED'|'EXPIRED';billingCycle:'MONTHLY'|'ANNUAL';amount:number;startsAt:string;endsAt?:string};

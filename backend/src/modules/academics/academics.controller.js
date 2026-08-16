@@ -1,0 +1,1 @@
+const factory=require('../_shared/crud.controller');const service=require('./academics.service');module.exports={sessions:factory(service.sessions),classes:factory(service.classes),sections:factory(service.sections),subjects:factory(service.subjects)};

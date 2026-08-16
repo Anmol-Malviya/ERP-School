@@ -1,0 +1,1 @@
+import type{BackendRole}from'@/lib/auth';export type User={_id:string;name:string;email:string;role:BackendRole;schoolId?:string|null;phone?:string;avatarUrl?:string;status:'ACTIVE'|'INACTIVE'|'SUSPENDED';createdAt?:string};

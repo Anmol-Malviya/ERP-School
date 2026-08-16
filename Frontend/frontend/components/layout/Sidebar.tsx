@@ -1,0 +1,1 @@
+import Link from'next/link';export type SidebarItem={href:string;label:string};export function Sidebar({items,active}:{items:SidebarItem[];active?:string}){return <aside className="portal-sidebar"><nav className="portal-nav">{items.map(item=><Link key={item.href} href={item.href} className={`portal-nav-item ${active===item.href?'active':''}`}>{item.label}</Link>)}</nav></aside>}

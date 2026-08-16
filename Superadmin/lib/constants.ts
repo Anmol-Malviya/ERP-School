@@ -1,0 +1,1 @@
+export const APP_NAME='School ERP';export const SUPER_ADMIN_ROLE='SUPER_ADMIN' as const;export const PLATFORM_ENDPOINTS={dashboard:'/platform/dashboard',schools:'/schools',administrators:'/users?role=ADMINISTRATOR',plans:'/plans',modules:'/modules',subscriptions:'/subscriptions',support:'/support',audit:'/audit'} as const;

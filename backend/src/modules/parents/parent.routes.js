@@ -1,0 +1,1 @@
+const {PERMISSIONS:P}=require('../../constants/permissions');const v=require('./parent.validator');module.exports=require('../_shared/crud.routes')({controller:require('./parent.controller'),readPermission:P.STUDENTS_READ,writePermission:P.STUDENTS_WRITE,validateCreate:v.create});

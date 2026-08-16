@@ -1,0 +1,1 @@
+const C=require('../../core'),s=require('./fee.service'),factory=require('../_shared/crud.controller');const fees=factory(s.fees),payments=factory(s.payments);module.exports={fees,payments,recordPayment:C.asyncHandler(async(req,res)=>C.success(res,await s.recordPayment(req),'Payment recorded',201))};

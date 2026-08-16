@@ -1,0 +1,1 @@
+const express=require('express');const C=require('../../core');const {PERMISSIONS:P}=require('../../constants/permissions');const router=express.Router();router.get('/',C.authenticate,C.tenant(false),C.permission(P.AUDIT_READ),require('./audit.controller').list);module.exports=router;

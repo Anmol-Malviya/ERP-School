@@ -1,0 +1,1 @@
+import type{InputHTMLAttributes}from'react';export function Input({className='',...props}:InputHTMLAttributes<HTMLInputElement>){return <input className={`settings-input ${className}`.trim()} {...props}/>}

@@ -1,0 +1,1 @@
+const {createCrudService}=require('../_shared/crud.service');module.exports=createCrudService({Model:require('./timetable.model'),resource:'Timetable',searchFields:['day'],filterFields:['academicSessionId','classId','sectionId','day','published']});

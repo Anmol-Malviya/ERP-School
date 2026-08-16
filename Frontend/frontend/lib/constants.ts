@@ -1,0 +1,1 @@
+export const APP_NAME='School ERP';export const API_PAGE_SIZE=20;export const ROLES=['SUPER_ADMIN','ADMINISTRATOR','SCHOOL_ADMIN','TEACHER','STUDENT','PARENT'] as const;export const ATTENDANCE_STATUSES=['PRESENT','ABSENT','LEAVE','LATE','HALF_DAY'] as const;export const USER_STATUSES=['ACTIVE','INACTIVE','SUSPENDED'] as const;

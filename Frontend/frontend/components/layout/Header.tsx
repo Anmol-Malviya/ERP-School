@@ -1,0 +1,1 @@
+import type{ReactNode}from'react';export function Header({title,actions}:{title:string;actions?:ReactNode}){return <header className="portal-topbar"><strong>{title}</strong><div className="portal-top-actions">{actions}</div></header>}

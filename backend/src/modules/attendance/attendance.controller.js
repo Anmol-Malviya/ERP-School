@@ -1,0 +1,1 @@
+const C=require('../../core'),service=require('./attendance.service'),crud=require('../_shared/crud.controller')(service);module.exports={...crud,bulk:C.asyncHandler(async(req,res)=>C.success(res,await service.bulk(req),'Attendance saved'))};

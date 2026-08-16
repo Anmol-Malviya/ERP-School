@@ -1,0 +1,1 @@
+const {createCrudService}=require('../_shared/crud.service');module.exports=createCrudService({Model:require('./teacher.model'),resource:'Teacher',searchFields:['name','employeeCode','email','department'],filterFields:['department','status']});
