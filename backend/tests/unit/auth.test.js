@@ -1,0 +1,1 @@
+process.env.JWT_ACCESS_SECRET='test-access-secret';process.env.JWT_REFRESH_SECRET='test-refresh-secret';const jwt=require('jsonwebtoken');test('JWT library can sign and verify auth payload',()=>{const token=jwt.sign({sub:'507f1f77bcf86cd799439011',role:'SUPER_ADMIN'},process.env.JWT_ACCESS_SECRET);expect(jwt.verify(token,process.env.JWT_ACCESS_SECRET).role).toBe('SUPER_ADMIN')});

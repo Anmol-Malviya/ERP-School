@@ -1,0 +1,12 @@
+const ROLES = Object.freeze({
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  ADMINISTRATOR: 'ADMINISTRATOR',
+  SCHOOL_ADMIN: 'SCHOOL_ADMIN',
+  TEACHER: 'TEACHER',
+  STUDENT: 'STUDENT',
+  PARENT: 'PARENT',
+});
+
+const ROLE_VALUES = Object.values(ROLES);
+
+module.exports = { ROLES, ROLE_VALUES };
