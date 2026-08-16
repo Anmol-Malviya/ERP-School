@@ -1,53 +1,58 @@
 const Redis = require('ioredis');
-const config = require('../config/env');
 
 let redis = null;
 let redisAvailable = false;
+const redisConfigured = Boolean(process.env.REDIS_URL);
 
-if (process.env.REDIS_URL) {
+if (redisConfigured) {
   redis = new Redis(process.env.REDIS_URL, {
-    maxRetriesPerRequest: 3,
-    enableOfflineQueue: false,
+    maxRetriesPerRequest: 2,
+    enableOfflineQueue: true,
     retryStrategy(times) {
-      if (times > 3) {
-        console.warn('[Cache] Redis connection failed. Falling back to in-memory/MongoDB.');
+      if (times > 5) {
         redisAvailable = false;
-        return null; // Stop retrying
+        return null;
       }
-      return Math.min(times * 100, 2000);
+      return Math.min(times * 200, 2000);
     }
   });
 
-  redis.on('connect', () => {
-    console.log('[Cache] Redis connected successfully.');
+  redis.on('ready', () => {
     redisAvailable = true;
   });
 
-  redis.on('error', (err) => {
-    console.error('[Cache] Redis connection error:', err.message);
+  redis.on('close', () => {
     redisAvailable = false;
   });
-} else {
-  console.log('[Cache] REDIS_URL not configured. Using local in-memory fallback.');
+
+  redis.on('error', () => {
+    redisAvailable = false;
+  });
 }
 
 const memoryCache = new Map();
+
+function getMemory(key) {
+  const entry = memoryCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    memoryCache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
 
 const cacheService = {
   async get(key) {
     if (redisAvailable && redis) {
       try {
-        const val = await redis.get(key);
-        return val ? JSON.parse(val) : null;
-      } catch (err) {
-        console.error('[Cache] Redis get error:', err);
+        const value = await redis.get(key);
+        return value ? JSON.parse(value) : null;
+      } catch (_) {
+        redisAvailable = false;
       }
     }
-    const memVal = memoryCache.get(key);
-    if (memVal && memVal.expiresAt > Date.now()) {
-      return memVal.value;
-    }
-    return null;
+    return getMemory(key);
   },
 
   async set(key, value, ttlSeconds = 30) {
@@ -55,14 +60,11 @@ const cacheService = {
       try {
         await redis.set(key, JSON.stringify(value), 'EX', ttlSeconds);
         return true;
-      } catch (err) {
-        console.error('[Cache] Redis set error:', err);
+      } catch (_) {
+        redisAvailable = false;
       }
     }
-    memoryCache.set(key, {
-      value,
-      expiresAt: Date.now() + ttlSeconds * 1000
-    });
+    memoryCache.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
     return true;
   },
 
@@ -70,22 +72,19 @@ const cacheService = {
     if (redisAvailable && redis) {
       try {
         await redis.del(key);
-        return true;
-      } catch (err) {
-        console.error('[Cache] Redis del error:', err);
+      } catch (_) {
+        redisAvailable = false;
       }
     }
     memoryCache.delete(key);
     return true;
   },
 
-  async remember(key, ttlSeconds, cb) {
+  async remember(key, ttlSeconds, factory) {
     const cached = await this.get(key);
     if (cached !== null) return cached;
-    const fresh = await cb();
-    if (fresh !== null && fresh !== undefined) {
-      await this.set(key, fresh, ttlSeconds);
-    }
+    const fresh = await factory();
+    if (fresh !== null && fresh !== undefined) await this.set(key, fresh, ttlSeconds);
     return fresh;
   },
 
@@ -93,30 +92,27 @@ const cacheService = {
     if (redisAvailable && redis) {
       try {
         let cursor = '0';
-        let keys = [];
         do {
-          const res = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
-          cursor = res[0];
-          keys.push(...res[1]);
+          const [next, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+          cursor = next;
+          if (keys.length) await redis.del(...keys);
         } while (cursor !== '0');
+      } catch (_) {
+        redisAvailable = false;
+      }
+    }
 
-        if (keys.length > 0) {
-          await redis.del(...keys);
-        }
-      } catch (err) {
-        console.error('[Cache] Redis invalidatePattern error:', err);
-      }
-    }
-    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*'));
-    for (const key of memoryCache.keys()) {
-      if (regex.test(key)) {
-        memoryCache.delete(key);
-      }
-    }
+    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+    const regex = new RegExp(`^${escaped}$`);
+    for (const key of memoryCache.keys()) if (regex.test(key)) memoryCache.delete(key);
+  },
+
+  hasRedisConfig() {
+    return redisConfigured;
   },
 
   isRedisEnabled() {
-    return redisAvailable;
+    return redisAvailable && Boolean(redis);
   },
 
   getRedisClient() {
