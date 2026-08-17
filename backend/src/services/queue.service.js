@@ -1,82 +1,71 @@
+const IORedis = require('ioredis');
 const { Queue, Worker } = require('bullmq');
-const cacheService = require('./cache.service');
 const N = require('./notification.service');
 
+const queueEnabled = Boolean(process.env.REDIS_URL);
 let notificationQueue = null;
 let notificationWorker = null;
 
-const queueEnabled = cacheService.isRedisEnabled();
-
-if (queueEnabled) {
-  const redisClient = cacheService.getRedisClient();
-  
-  notificationQueue = new Queue('notifications', {
-    connection: redisClient
-  });
-  
-  notificationWorker = new Worker('notifications', async (job) => {
-    const { type, data } = job.data;
-    console.log(`[Queue] Processing background job: ${type}`);
-    
-    switch (type) {
-      case 'ATTENDANCE_NOTIFY':
-        await N.notifyParentsForStudents(data.studentIds, data.payload);
-        break;
-      case 'NOTICE_FANOUT':
-        await N.notifyAudience(data);
-        break;
-      case 'RESULT_PUBLISH':
-        await N.notifyUsers(data.userIds, data.payload);
-        break;
-      case 'CALENDAR_EVENT':
-        await N.notifyAudience(data);
-        break;
-      default:
-        console.warn(`[Queue] Unknown job type: ${type}`);
-    }
-  }, {
-    connection: redisClient
-  });
-  
-  notificationWorker.on('failed', (job, err) => {
-    console.error(`[Queue] Job ${job?.id} failed:`, err);
-  });
-} else {
-  console.log('[Queue] BullMQ background queue is disabled. Running jobs synchronously.');
+async function processNotification(type, data) {
+  switch (type) {
+    case 'ATTENDANCE_NOTIFY':
+      return N.notifyParentsForStudents(data.studentIds, data.payload);
+    case 'NOTICE_FANOUT':
+      return N.notifyAudience(data);
+    case 'RESULT_PUBLISH':
+      return N.notifyUsers(data.userIds, data.payload);
+    case 'CALENDAR_EVENT':
+      return N.notifyAudience(data);
+    default:
+      return null;
+  }
 }
 
-const queueService = {
+if (queueEnabled) {
+  // BullMQ workers require a connection with maxRetriesPerRequest=null.
+  const queueConnection = new IORedis(process.env.REDIS_URL, {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: true
+  });
+  const workerConnection = new IORedis(process.env.REDIS_URL, {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: true
+  });
+
+  queueConnection.on('error', () => {});
+  workerConnection.on('error', () => {});
+
+  notificationQueue = new Queue('notifications', { connection: queueConnection });
+  notificationWorker = new Worker(
+    'notifications',
+    async (job) => processNotification(job.data.type, job.data.data),
+    { connection: workerConnection }
+  );
+  notificationWorker.on('error', () => {});
+  notificationWorker.on('failed', () => {});
+}
+
+module.exports = {
   async addNotificationJob(type, data) {
     if (queueEnabled && notificationQueue) {
       try {
-        await notificationQueue.add(type, { type, data });
+        await notificationQueue.add(type, { type, data }, {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+          removeOnComplete: 500,
+          removeOnFail: 1000
+        });
         return true;
-      } catch (err) {
-        console.error('[Queue] BullMQ add error, falling back to sync:', err);
+      } catch (_) {
+        // Redis/queue failure should not make the primary ERP request fail.
       }
     }
-    
-    // Sync fallback
+
     try {
-      switch (type) {
-        case 'ATTENDANCE_NOTIFY':
-          await N.notifyParentsForStudents(data.studentIds, data.payload);
-          break;
-        case 'NOTICE_FANOUT':
-          await N.notifyAudience(data);
-          break;
-        case 'RESULT_PUBLISH':
-          await N.notifyUsers(data.userIds, data.payload);
-          break;
-        case 'CALENDAR_EVENT':
-          await N.notifyAudience(data);
-          break;
-      }
-    } catch (err) {
-      console.error('[Queue] Sync fallback execution failed:', err);
+      await processNotification(type, data);
+    } catch (_) {
+      // Notification delivery is best-effort in synchronous fallback mode.
     }
     return true;
   }
 };
-
-module.exports = queueService;
