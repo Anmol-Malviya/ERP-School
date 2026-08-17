@@ -1,45 +1,20 @@
-const { Queue, Worker } = require('bullmq');
+const { Queue } = require('bullmq');
+const Redis = require('ioredis');
 const cacheService = require('./cache.service');
 const N = require('./notification.service');
 
 let notificationQueue = null;
-let notificationWorker = null;
+let queueConnection = null;
 
-const queueEnabled = cacheService.isRedisEnabled();
+const queueEnabled = cacheService.hasRedisConfig();
 
 if (queueEnabled) {
-  const redisClient = cacheService.getRedisClient();
+  queueConnection = new Redis(process.env.REDIS_URL, {
+    maxRetriesPerRequest: null
+  });
   
   notificationQueue = new Queue('notifications', {
-    connection: redisClient
-  });
-  
-  notificationWorker = new Worker('notifications', async (job) => {
-    const { type, data } = job.data;
-    console.log(`[Queue] Processing background job: ${type}`);
-    
-    switch (type) {
-      case 'ATTENDANCE_NOTIFY':
-        await N.notifyParentsForStudents(data.studentIds, data.payload);
-        break;
-      case 'NOTICE_FANOUT':
-        await N.notifyAudience(data);
-        break;
-      case 'RESULT_PUBLISH':
-        await N.notifyUsers(data.userIds, data.payload);
-        break;
-      case 'CALENDAR_EVENT':
-        await N.notifyAudience(data);
-        break;
-      default:
-        console.warn(`[Queue] Unknown job type: ${type}`);
-    }
-  }, {
-    connection: redisClient
-  });
-  
-  notificationWorker.on('failed', (job, err) => {
-    console.error(`[Queue] Job ${job?.id} failed:`, err);
+    connection: queueConnection
   });
 } else {
   console.log('[Queue] BullMQ background queue is disabled. Running jobs synchronously.');
@@ -78,5 +53,16 @@ const queueService = {
     return true;
   }
 };
+
+// Graceful shutdown support for connection
+if (queueEnabled) {
+  const shutdown = async () => {
+    console.log('[Queue] Shutting down queue connection...');
+    if (notificationQueue) await notificationQueue.close();
+    if (queueConnection) await queueConnection.quit();
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+}
 
 module.exports = queueService;

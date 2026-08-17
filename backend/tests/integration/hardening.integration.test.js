@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const { connectDB, disconnectDB } = require('../../src/config/db');
 const { runInTransaction } = require('../../src/utils/transactions');
 const M = require('../../src/models');
-const E = require('../../src/models/extended');
+const E = M;
 const pay = require('../../src/payments/razorpay');
 const paymentsService = require('../../src/modules/payments/payments.service');
 
