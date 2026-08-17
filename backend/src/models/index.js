@@ -20,5 +20,19 @@ const base = {
   Leave: require('../modules/leaves/leave.model'),
   Notification: require('../modules/notifications/notification.model'),
   AuditLog: require('../modules/audit/auditLog.model'),
+  
+  // Relocated models
+  AuthSession: require('../modules/auth/authSession.model'),
+  Enrollment: require('../modules/students/enrollment.model'),
+  AssignmentSubmission: require('../modules/submissions/assignmentSubmission.model'),
+  CalendarEvent: require('../modules/calendar/calendarEvent.model'),
+  Certificate: require('../modules/certificates/certificate.model'),
+  OnlinePaymentIntent: require('../modules/payments/onlinePaymentIntent.model'),
+  Plan: require('../modules/plans/plan.model'),
+  ModuleCatalog: require('../modules/modules/moduleCatalog.model'),
+  Subscription: require('../modules/subscriptions/subscription.model'),
+  SupportTicket: require('../modules/support/supportTicket.model'),
+  SchoolPreference: require('../modules/school-preferences/schoolPreference.model'),
+  PlatformSetting: require('../modules/platform-settings/platformSetting.model'),
 };
-module.exports = { ...base, ...require('./extended') };
+module.exports = base;

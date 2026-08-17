@@ -2,7 +2,7 @@ const C=require('../../core');const Attendance=require('./attendance.model');con
 const { ROLES } = require('../../constants/roles');
 const queueService = require('../../services/queue.service');
 
-const base=createCrudService({Model:Attendance,resource:'Attendance',searchFields:['status','remarks'],filterFields:['academicSessionId','classId','sectionId','studentId','status','date']});
+const base=createCrudService({Model:Attendance,resource:'Attendance',searchFields:['status','remarks'],filterFields:['academicSessionId','classId','sectionId','studentId','status','date'],allowDelete:false});
 
 module.exports={
   ...base,

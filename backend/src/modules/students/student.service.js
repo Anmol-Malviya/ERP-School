@@ -1,7 +1,7 @@
 const {createCrudService}=require('../_shared/crud.service');
 const { runInTransaction } = require('../../utils/transactions');
 const M = require('../../models');
-const E = require('../../models/extended');
+const E = require('../../models');
 const C = require('../../core');
 const cacheService = require('../../services/cache.service');
 

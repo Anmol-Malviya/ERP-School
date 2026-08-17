@@ -1,5 +1,5 @@
 const M = require('../../models');
-const E = require('../../models/extended');
+const E = require('../../models');
 const C = require('../../core');
 const { ROLES } = require('../../constants/roles');
 

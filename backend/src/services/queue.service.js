@@ -1,10 +1,10 @@
+const { Queue } = require('bullmq');
 const IORedis = require('ioredis');
-const { Queue, Worker } = require('bullmq');
 const N = require('./notification.service');
 
 const queueEnabled = Boolean(process.env.REDIS_URL);
 let notificationQueue = null;
-let notificationWorker = null;
+let queueConnection = null;
 
 async function processNotification(type, data) {
   switch (type) {
@@ -22,30 +22,16 @@ async function processNotification(type, data) {
 }
 
 if (queueEnabled) {
-  // BullMQ workers require a connection with maxRetriesPerRequest=null.
-  const queueConnection = new IORedis(process.env.REDIS_URL, {
+  queueConnection = new IORedis(process.env.REDIS_URL, {
     maxRetriesPerRequest: null,
     enableReadyCheck: true
   });
-  const workerConnection = new IORedis(process.env.REDIS_URL, {
-    maxRetriesPerRequest: null,
-    enableReadyCheck: true
-  });
-
   queueConnection.on('error', () => {});
-  workerConnection.on('error', () => {});
 
   notificationQueue = new Queue('notifications', { connection: queueConnection });
-  notificationWorker = new Worker(
-    'notifications',
-    async (job) => processNotification(job.data.type, job.data.data),
-    { connection: workerConnection }
-  );
-  notificationWorker.on('error', () => {});
-  notificationWorker.on('failed', () => {});
 }
 
-module.exports = {
+const queueService = {
   async addNotificationJob(type, data) {
     if (queueEnabled && notificationQueue) {
       try {
@@ -69,3 +55,16 @@ module.exports = {
     return true;
   }
 };
+
+// Graceful shutdown support for connection
+if (queueEnabled) {
+  const shutdown = async () => {
+    console.log('[Queue] Shutting down queue connection...');
+    if (notificationQueue) await notificationQueue.close();
+    if (queueConnection) await queueConnection.quit();
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+}
+
+module.exports = queueService;

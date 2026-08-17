@@ -2,13 +2,15 @@ const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis').default;
 const cacheService = require('../services/cache.service');
 const { verifyAccess } = require('../utils/tokens');
+const crypto = require('crypto');
 
-const store = cacheService.hasRedisConfig()
-  ? new RedisStore({
-      sendCommand: (...args) => cacheService.getRedisClient().call(...args),
-      prefix: 'erp:rl:'
-    })
-  : undefined;
+function createStore(prefix) {
+  if (!cacheService.hasRedisConfig()) return undefined;
+  return new RedisStore({
+    sendCommand: (...args) => cacheService.getRedisClient().call(...args),
+    prefix: `erp:rl:${prefix}:`
+  });
+}
 
 function ipKey(req) {
   return ipKeyGenerator(req.ip || '127.0.0.1');
@@ -24,17 +26,39 @@ function bearerSubject(req) {
   }
 }
 
-function limiter(options) {
+function getRefreshTokenHash(req) {
+  const cookieName = process.env.REFRESH_COOKIE_NAME || 'erp_refresh';
+  let token = '';
+  if (req.headers.cookie) {
+    const parts = req.headers.cookie.split(';');
+    for (const part of parts) {
+      const trimPart = part.trim();
+      if (trimPart.startsWith(`${cookieName}=`)) {
+        token = decodeURIComponent(trimPart.slice(cookieName.length + 1));
+        break;
+      }
+    }
+  }
+  if (!token && req.body && req.body.refreshToken) {
+    token = req.body.refreshToken;
+  }
+  if (token) {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+  return ipKey(req);
+}
+
+function limiter(name, options) {
   return rateLimit({
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     passOnStoreError: true,
-    store,
+    store: createStore(name),
     ...options
   });
 }
 
-const loginLimiter = limiter({
+const loginLimiter = limiter('login', {
   windowMs: 15 * 60 * 1000,
   limit: 10,
   keyGenerator: (req) => {
@@ -44,47 +68,44 @@ const loginLimiter = limiter({
   message: { success: false, code: 'RATE_LIMITED', message: 'Too many login attempts, please try again later.' }
 });
 
-const passwordLimiter = limiter({
+const passwordLimiter = limiter('password', {
   windowMs: 15 * 60 * 1000,
   limit: 10,
   keyGenerator: (req) => `password:${bearerSubject(req) || req.user?._id || ipKey(req)}`,
   message: { success: false, code: 'RATE_LIMITED', message: 'Too many password change requests.' }
 });
 
-const refreshLimiter = limiter({
+const refreshLimiter = limiter('refresh', {
   windowMs: 60 * 1000,
   limit: 60,
-  keyGenerator: (req) => `refresh:${ipKey(req)}`,
+  keyGenerator: (req) => `refresh:${getRefreshTokenHash(req)}`,
   message: { success: false, code: 'RATE_LIMITED', message: 'Too many refresh operations.' }
 });
 
-const uploadLimiter = limiter({
+const uploadLimiter = limiter('upload', {
   windowMs: 60 * 1000,
   limit: 20,
   keyGenerator: (req) => `upload:${bearerSubject(req) || req.user?._id || ipKey(req)}`,
   message: { success: false, code: 'RATE_LIMITED', message: 'Upload signature rate limit exceeded.' }
 });
 
-const paymentLimiter = limiter({
+const paymentLimiter = limiter('payment', {
   windowMs: 60 * 1000,
   limit: 10,
   keyGenerator: (req) => `payment:${bearerSubject(req) || req.user?._id || ipKey(req)}`,
   message: { success: false, code: 'RATE_LIMITED', message: 'Payment request rate limit exceeded.' }
 });
 
-const publicLimiter = limiter({
+const publicLimiter = limiter('public', {
   windowMs: 60 * 1000,
   limit: 120,
   keyGenerator: (req) => `public:${ipKey(req)}`,
   message: { success: false, code: 'RATE_LIMITED', message: 'Too many requests.' }
 });
 
-const authenticatedLimiter = limiter({
+const apiLimiter = limiter('api', {
   windowMs: 60 * 1000,
   limit: 900,
-  // This middleware runs before module authentication, so derive the user id from the verified JWT.
-  // Falling back to IP keeps public auth endpoints protected without making shared school networks
-  // share one authenticated quota.
   keyGenerator: (req) => `api:${bearerSubject(req) || ipKey(req)}`,
   message: { success: false, code: 'RATE_LIMITED', message: 'API request limit exceeded.' }
 });
@@ -96,5 +117,5 @@ module.exports = {
   uploadLimiter,
   paymentLimiter,
   publicLimiter,
-  authenticatedLimiter
+  apiLimiter
 };

@@ -31,6 +31,17 @@ if (redisConfigured) {
 }
 
 const memoryCache = new Map();
+const MAX_MEM_CACHE_SIZE = 1000;
+
+// Periodic cleanup of expired memory cache entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of memoryCache.entries()) {
+    if (v.expiresAt <= now) {
+      memoryCache.delete(k);
+    }
+  }
+}, 5 * 60 * 1000).unref();
 
 function getMemory(key) {
   const entry = memoryCache.get(key);
@@ -64,6 +75,22 @@ const cacheService = {
         redisAvailable = false;
       }
     }
+    
+    if (memoryCache.size >= MAX_MEM_CACHE_SIZE) {
+      let oldestKey = null;
+      const now = Date.now();
+      for (const [k, v] of memoryCache.entries()) {
+        if (v.expiresAt <= now) {
+          memoryCache.delete(k);
+        } else if (!oldestKey) {
+          oldestKey = k;
+        }
+      }
+      if (memoryCache.size >= MAX_MEM_CACHE_SIZE && oldestKey) {
+        memoryCache.delete(oldestKey);
+      }
+    }
+
     memoryCache.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
     return true;
   },
