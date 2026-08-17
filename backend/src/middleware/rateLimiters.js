@@ -1,6 +1,7 @@
-const { rateLimit } = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis').default;
 const cacheService = require('../services/cache.service');
+const { verifyAccess } = require('../utils/tokens');
 const crypto = require('crypto');
 
 function createStore(prefix) {
@@ -11,7 +12,21 @@ function createStore(prefix) {
   });
 }
 
-const getRefreshTokenHash = (req) => {
+function ipKey(req) {
+  return ipKeyGenerator(req.ip || '127.0.0.1');
+}
+
+function bearerSubject(req) {
+  const [scheme, token] = String(req.headers.authorization || '').split(' ');
+  if (scheme !== 'Bearer' || !token) return null;
+  try {
+    return String(verifyAccess(token).sub || '');
+  } catch (_) {
+    return null;
+  }
+}
+
+function getRefreshTokenHash(req) {
   const cookieName = process.env.REFRESH_COOKIE_NAME || 'erp_refresh';
   let token = '';
   if (req.headers.cookie) {
@@ -30,89 +45,69 @@ const getRefreshTokenHash = (req) => {
   if (token) {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
-  return req.ip;
-};
+  return ipKey(req);
+}
 
-const loginLimiter = rateLimit({
+function limiter(name, options) {
+  return rateLimit({
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    passOnStoreError: true,
+    store: createStore(name),
+    ...options
+  });
+}
+
+const loginLimiter = limiter('login', {
   windowMs: 15 * 60 * 1000,
   limit: 10,
   keyGenerator: (req) => {
-    const email = String(req.body.email || '').trim().toLowerCase();
-    return `${req.ip}:${email}`;
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    return `login:${ipKey(req)}:${email}`;
   },
-  message: { success: false, code: 'RATE_LIMITED', message: 'Too many login attempts, please try again after 15 minutes.' },
-  store: createStore('login'),
-  standardHeaders: 'draft-7',
-  legacyHeaders: false
+  message: { success: false, code: 'RATE_LIMITED', message: 'Too many login attempts, please try again later.' }
 });
 
-const passwordLimiter = rateLimit({
+const passwordLimiter = limiter('password', {
   windowMs: 15 * 60 * 1000,
   limit: 10,
-  keyGenerator: (req) => `${req.user?._id || req.ip}`,
-  message: { success: false, code: 'RATE_LIMITED', message: 'Too many password reset requests.' },
-  store: createStore('password'),
-  standardHeaders: 'draft-7',
-  legacyHeaders: false
+  keyGenerator: (req) => `password:${bearerSubject(req) || req.user?._id || ipKey(req)}`,
+  message: { success: false, code: 'RATE_LIMITED', message: 'Too many password change requests.' }
 });
 
-const refreshLimiter = rateLimit({
+const refreshLimiter = limiter('refresh', {
   windowMs: 60 * 1000,
   limit: 60,
-  keyGenerator: (req) => getRefreshTokenHash(req),
-  message: { success: false, code: 'RATE_LIMITED', message: 'Too many refresh operations.' },
-  store: createStore('refresh'),
-  standardHeaders: 'draft-7',
-  legacyHeaders: false
+  keyGenerator: (req) => `refresh:${getRefreshTokenHash(req)}`,
+  message: { success: false, code: 'RATE_LIMITED', message: 'Too many refresh operations.' }
 });
 
-const uploadLimiter = rateLimit({
+const uploadLimiter = limiter('upload', {
+  windowMs: 60 * 1000,
+  limit: 20,
+  keyGenerator: (req) => `upload:${bearerSubject(req) || req.user?._id || ipKey(req)}`,
+  message: { success: false, code: 'RATE_LIMITED', message: 'Upload signature rate limit exceeded.' }
+});
+
+const paymentLimiter = limiter('payment', {
   windowMs: 60 * 1000,
   limit: 10,
-  keyGenerator: (req) => `${req.user?._id || req.ip}`,
-  message: { success: false, code: 'RATE_LIMITED', message: 'Upload rate limit exceeded.' },
-  store: createStore('upload'),
-  standardHeaders: 'draft-7',
-  legacyHeaders: false
+  keyGenerator: (req) => `payment:${bearerSubject(req) || req.user?._id || ipKey(req)}`,
+  message: { success: false, code: 'RATE_LIMITED', message: 'Payment request rate limit exceeded.' }
 });
 
-const paymentLimiter = rateLimit({
+const publicLimiter = limiter('public', {
   windowMs: 60 * 1000,
-  limit: 10,
-  keyGenerator: (req) => `${req.user?._id || req.ip}`,
-  message: { success: false, code: 'RATE_LIMITED', message: 'Payment link request rate limit exceeded.' },
-  store: createStore('payment'),
-  standardHeaders: 'draft-7',
-  legacyHeaders: false
+  limit: 120,
+  keyGenerator: (req) => `public:${ipKey(req)}`,
+  message: { success: false, code: 'RATE_LIMITED', message: 'Too many requests.' }
 });
 
-const publicLimiter = rateLimit({
+const apiLimiter = limiter('api', {
   windowMs: 60 * 1000,
-  limit: 100,
-  keyGenerator: (req) => `${req.ip}`,
-  message: { success: false, code: 'RATE_LIMITED', message: 'Too many requests.' },
-  store: createStore('public'),
-  standardHeaders: 'draft-7',
-  legacyHeaders: false
-});
-
-const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 600,
-  keyGenerator: (req) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      if (token) {
-        return crypto.createHash('sha256').update(token).digest('hex');
-      }
-    }
-    return req.ip;
-  },
-  message: { success: false, code: 'RATE_LIMITED', message: 'API request limit exceeded.' },
-  store: createStore('api'),
-  standardHeaders: 'draft-7',
-  legacyHeaders: false
+  limit: 900,
+  keyGenerator: (req) => `api:${bearerSubject(req) || ipKey(req)}`,
+  message: { success: false, code: 'RATE_LIMITED', message: 'API request limit exceeded.' }
 });
 
 module.exports = {

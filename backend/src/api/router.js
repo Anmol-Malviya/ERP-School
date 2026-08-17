@@ -2,7 +2,10 @@ const express=require('express');
 const C=require('../core');
 const router=express.Router();
 
-// Custom dashboard bootstrap route
+// Authentication must be mounted explicitly because the legacy secure-auth router was removed.
+router.use('/auth', require('../modules/auth/auth.routes'));
+
+// Dashboard bootstrap keeps the school portal to a single initial request.
 router.get('/dashboard/bootstrap', C.authenticate, require('../modules/reports/report.controller').bootstrap);
 
 router.use('/schools',require('../modules/schools/school.routes'));
@@ -23,34 +26,17 @@ router.use('/leaves',require('../modules/leaves/leave.routes'));
 router.use('/notifications',require('../modules/notifications/notification.routes'));
 router.use('/reports',require('../modules/reports/report.routes'));
 router.use('/audit',require('../modules/audit/audit.routes'));
-
-// Onboarding & Onboarding-related Modular routes
 router.use('/onboarding', require('../modules/onboarding/onboarding.routes'));
-
-// Calendar modular routes
 router.use('/calendar', require('../modules/calendar/calendar.routes'));
-
-// Certificates modular routes
 router.use('/certificates', require('../modules/certificates/certificates.routes'));
-
-// Billing/Plans/Subscriptions modular routes
 router.use('/plans', require('../modules/plans/plans.routes'));
+router.use('/modules', require('../modules/modules/modules.routes'));
 router.use('/subscriptions', require('../modules/subscriptions/subscriptions.routes'));
-
-// Support Ticket modular routes
 router.use('/support', require('../modules/support/support.routes'));
-
-// Platform Settings key-value modular routes
 router.use('/platform-settings', require('../modules/platform-settings/platform-settings.routes'));
-
-// Upload Sign modular routes
+router.use('/school-preferences', require('../modules/school-preferences/school-preferences.routes'));
 router.use('/uploads', require('../modules/uploads/uploads.routes'));
-
-// Assignment submissions modular routes
 router.use('/assignment-submissions', require('../modules/submissions/submissions.routes'));
-
-// Payments modular routes (handles online-payments, fees-payments)
 router.use('/', require('../modules/payments/payments.routes'));
 
 module.exports=router;
-
